@@ -121,6 +121,18 @@ def download_file_if_necessary(data_root: str, potentially_remote_path: str, ver
     log_name = absolute_path_to_log_name(potentially_remote_path)
     download_name = log_name + ".db"
 
+    # Try to find the file in NUPLAN_DATA_ROOT if original path doesn't exist
+    # This handles the case where simulation logs are loaded from a different machine
+    nuplan_data_root = os.environ.get("NUPLAN_DATA_ROOT")
+    if nuplan_data_root:
+        import glob
+        # Search for the db file recursively in NUPLAN_DATA_ROOT
+        matches = glob.glob(os.path.join(nuplan_data_root, "**", download_name), recursive=True)
+        if matches:
+            return matches[0]
+        # Also use NUPLAN_DATA_ROOT as the data_root for downloading
+        data_root = nuplan_data_root
+
     # TODO: CacheStore seems to be buggy.
     # Behavior seems to be different on our cluster vs locally regarding downloaded file paths.
     #
