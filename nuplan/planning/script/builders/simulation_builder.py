@@ -92,8 +92,17 @@ def build_simulations(
             planners = pre_built_planners
 
         for planner in planners:
+            # Perception (built first so controllers that need observations can receive them)
+            observations: AbstractObservation = build_observations(cfg.observation, scenario=scenario)
+
             # Ego Controller
-            ego_controller: AbstractEgoController = instantiate(cfg.ego_controller, scenario=scenario)
+            # Pass observations if the controller accepts it (e.g. LQRCBFTwoStageController)
+            try:
+                ego_controller: AbstractEgoController = instantiate(
+                    cfg.ego_controller, scenario=scenario, observations=observations
+                )
+            except TypeError:
+                ego_controller = instantiate(cfg.ego_controller, scenario=scenario)
 
             # Simulation Manager
             simulation_time_controller: AbstractSimulationTimeController = instantiate(
