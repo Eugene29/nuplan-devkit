@@ -1,8 +1,9 @@
 """
-Tracker that replays pre-computed (accel, steering_rate) actions from the
-LQR-CBF module through nuplan's motion model.
+Tracker that replays pre-computed (accel, steering_rate) actions from
+CBF modules (lqr_tracker_cbf_modular, QP_solver, etc.) through nuplan's
+motion model.
 
-Reads the latest action from diffusion_planner.model.cbf_simple.lqr_tracker_cbf_modular.latest_action.
+Any CBF module can call set_latest_action() to store its first-step action.
 """
 
 from nuplan.common.actor_state.dynamic_car_state import DynamicCarState
@@ -11,6 +12,20 @@ from nuplan.common.actor_state.state_representation import StateVector2D
 from nuplan.planning.simulation.controller.tracker.abstract_tracker import AbstractTracker
 from nuplan.planning.simulation.simulation_time_controller.simulation_iteration import SimulationIteration
 from nuplan.planning.simulation.trajectory.abstract_trajectory import AbstractTrajectory
+
+# Shared action variable: numpy [2] (accel, steering_rate)
+_latest_action = None
+
+
+def set_latest_action(action):
+    """Set the latest action. Called by CBF modules after solving."""
+    global _latest_action
+    _latest_action = action
+
+
+def get_latest_action():
+    """Get the latest action."""
+    return _latest_action
 
 
 class ActionReplayTracker(AbstractTracker):
@@ -24,13 +39,14 @@ class ActionReplayTracker(AbstractTracker):
         trajectory: AbstractTrajectory,
     ) -> DynamicCarState:
         """Inherited, see superclass."""
-        from diffusion_planner.model.cbf_simple.lqr_tracker_cbf_modular import get_latest_action
+        global _latest_action
+        assert _latest_action is not None, "_latest_action is not set"
 
-        action = get_latest_action()
-        assert action is not None
+        accel = float(_latest_action[0])
+        steering_rate = float(_latest_action[1])
 
-        accel = float(action[0])
-        steering_rate = float(action[1])
+        # Consume the action to prevent stale reuse
+        _latest_action = None
 
         return DynamicCarState.build_from_rear_axle(
             rear_axle_to_center_dist=initial_state.car_footprint.rear_axle_to_center_dist,

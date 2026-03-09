@@ -77,6 +77,19 @@ def build_simulations(
     else:
         logger.info('Metric engine is disable')
 
+    # Validate: lqr_cbf / mpc_cbf require action_replay_controller and vice versa
+    uses_action_replay = 'action_replay' in cfg.ego_controller.tracker._target_
+    uses_cbf_action = (
+        cfg.planner.diffusion_planner.config.cbf.lqr_cbf
+        or cfg.planner.diffusion_planner.config.cbf.mpc_cbf
+    )
+    assert uses_action_replay == uses_cbf_action, (
+        f"Config mismatch: action_replay_controller={uses_action_replay}, "
+        f"lqr_cbf={cfg.planner.diffusion_planner.config.cbf.lqr_cbf}, "
+        f"mpc_cbf={cfg.planner.diffusion_planner.config.cbf.mpc_cbf}. "
+        f"action_replay_controller requires lqr_cbf=true or mpc_cbf=true, and vice versa."
+    )
+
     logger.info('Building simulations from %d scenarios...', len(scenarios))
 
     # Build a metric metadata file
